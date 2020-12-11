@@ -12,6 +12,9 @@ import reportWebVitals from './reportWebVitals';
 
 // (arrayof Tab) -> (arrayof (arrayof Tab))
 // Groups tabs into corresponding windows they are members of
+
+window.tabsMoved = [];
+
 function groupTabs(a) {
   let ret = {};
   a.forEach((val) => {
@@ -70,31 +73,56 @@ function onDragLeave(e) {
   //elt.parentElement.removeChild(elt);
 }
 
+// HTMLElement -> Integer | Null (if unsuccessful)
+function calcWindowIndex(elt) {
+  let idx=null;
+  const c = elt.parentElement.children;
+  for (let i=1; i < c.length; ++i) {
+    if (c[i].id === elt.id) {
+      idx = parseInt(i-1);
+    }
+  }
+  if (idx == null) {
+    console.log("ERROR: didn't find tab in it's supposed assigned window")
+  }
+  return idx+1; // inserted below => index is 1 + index of entry above
+}
+
 function onDrop(event) {
   const id = event
-    .dataTransfer
-    .getData('text');
-    //console.log("Data received: ", id);
+  .dataTransfer
+  .getData('text');
+  //console.log("Data received: ", id);
 
-    const draggableElement = document.getElementById(id);
-    //console.log("draggableElement == ", draggableElement);
+  const draggableElement = document.getElementById(id);
+  //console.log("draggableElement == ", draggableElement);
 
-    draggableElement
-    .classList
-    .add('moved');
-    
-    const dropzone = event.currentTarget;
-    dropzone.insertAdjacentElement("afterend", draggableElement);
-    
-    
-    event
-    .dataTransfer
-    .clearData();
+  draggableElement
+  .classList
+  .add('moved');
+  
+  const dropzone = event.currentTarget;
+  dropzone.insertAdjacentElement("afterend", draggableElement);
+  
+  
+  event
+  .dataTransfer
+  .clearData();
 
-    event
-    .currentTarget
-    .classList
-    .remove("todropon");
+  event
+  .currentTarget
+  .classList
+  .remove("todropon");
+
+  // index becomes a string inside the object initializer, I don't know why
+
+  window.tabsMoved.push({
+    tabId: draggableElement.id,
+    moveProperties: {
+      index: parseInt(calcWindowIndex(dropzone)),
+      windowId: parseInt(draggableElement.parentElement.dataset.windowid)
+    }
+  });
 }
 
 function Tablist(props) {
@@ -103,12 +131,12 @@ function Tablist(props) {
     <div key={tab.id} className="entry" draggable="true"
     onDragStart={onDragStart} onDrop={onDrop} onDragOver={onDragOver}
     onDragEnter={onDragEnter} onDragLeave={onDragLeave} id={tab.id}>
-      <div className="left"><img src={tab.favIconUrl} /></div>
+      <div className="left"><img src={tab.favIconUrl} alt="" /></div>
       <div className="right">{tab.title.slice(0,55)}</div>
     </div>
   );
   return (
-    <div className="tabsBox">
+    <div className="tabsBox" data-windowid={String(props.data[0].windowId)}>
       <h3>{String(props.data[0].windowId)}</h3>
       {content}
     </div>
@@ -122,6 +150,23 @@ function Tablist(props) {
     </div>
   );
 } */
+
+function applyChanges() {
+  channel.postMessage(window.tabsMoved);
+
+  document.querySelectorAll('.moved').forEach((e) => {
+    e.classList.remove('moved');
+  });
+}
+
+function onKeyDown(e) {
+  if (e.key === "Enter") {
+    applyChanges();
+  }
+}
+
+document.addEventListener('keydown', onKeyDown);
+
 
 function App(props) {
   let tabgroups = [];
