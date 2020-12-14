@@ -5,32 +5,26 @@ import './index.css';
 import reportWebVitals from './reportWebVitals';
 import {testdata} from './testdata';
 
+
+// A tab organizer extension for Google Chrome
+//
+// References:
+// https://www.digitalocean.com/community/tutorials/js-drag-and-drop-vanilla-js
+// https://codepen.io/androidcss/pen/yOopGp
+// css.gg/check-o
+
+
+//* Toggle Testing
+
 const TESTING = true;
 const DATA = JSON.parse(testdata);
 
-// NOTES
-//
-// Was inspired by convention of vscode tabs for drag drop
-// insert above when hovering over element.  Can do two drags if want
-//   to insert at the end
 
-// (arrayof Tab) -> (arrayof (arrayof Tab))
-// Groups tabs into corresponding windows they are members of
-
-
-/*
-Data design:
-
-tabWindow:
-
-
-
-*/
-
+//* Global constants and functions
 
 window.tabTable = {};
 
-
+/** Store table of all tabs, indexed by tab id */
 function initializeTabTable(a) {
   console.log(a);
   a.forEach((val) => {
@@ -38,6 +32,7 @@ function initializeTabTable(a) {
   });
 }
 
+/** Produce starting tabWindows state for `App` */
 function groupTabs(a) {
   let ret = [];
   a.forEach((tab) => {
@@ -51,37 +46,7 @@ function groupTabs(a) {
   return ret;
 }
 
-
-
-
-/* channel.addEventListener("message", e => {
-  window.data = groupTabs(e.data);
-  console.log(e.data);
-  ReactDOM.render(
-    <App data={window.data}/>,
-    document.getElementById('root')
-  );
-}); */
-
-// https://www.digitalocean.com/community/tutorials/js-drag-and-drop-vanilla-js
-
-
-/* 
-function applyChanges() {
-  channel.postMessage(window.tabsMoved);
-
-  document.querySelectorAll('.moved').forEach((e) => {
-    e.classList.remove('moved');
-  });
-} */
-
-/* function onKeyDown(e) {
-  if (e.key === "Enter") {
-    applyChanges();
-  }
-} */
-
-// document.addEventListener('keydown', onKeyDown);
+//* React Components
 
 class Tab extends React.Component {
   constructor(props) {
@@ -120,8 +85,8 @@ class Tab extends React.Component {
   render() {
     const faviconUrl = window.tabTable[this.props.tabId].faviconUrl;
     const title = window.tabTable[this.props.tabId].title;
-    let classNames =
-      this.state.entered ? "entry todropon" : "entry";
+    let classNames = 
+      this.state.entered ? "tab todropon" : "tab";
     classNames = 
       this.props.isMoved(this.props.tabId) ? classNames + " moved" : classNames;
     return (
@@ -154,20 +119,89 @@ class App extends React.Component {
     super(props);
     this.state = {
       tabsMoved: [],
-      tabWindows: props.data,
+      tabWindows: props.tabWindows,
       draggedTabData: null
     };
 
+    this.handleOnDragStart = this.handleOnDragStart.bind(this);
+    this.handleOnDrop = this.handleOnDrop.bind(this);
+    this.applyChanges = this.applyChanges.bind(this);
     this.updateTabWindow = this.updateTabWindow.bind(this);
     this.addBelow = this.addBelow.bind(this);
     this.remove = this.remove.bind(this);
     this.findTabIndex = this.findTabIndex.bind(this);
     this.isTabMoved = this.isTabMoved.bind(this);
-    this.handleOnDragStart = this.handleOnDragStart.bind(this);
-    this.handleOnDrop = this.handleOnDrop.bind(this);
-
-    
   }
+
+  handleOnDragStart(tabId, windowId, e) {
+    this.setState((state) => {
+      return {
+        draggedTabData: {tabId: tabId, windowId: windowId}
+      };
+    });
+  }
+
+  handleOnDrop(dropzoneTabId, dropzoneWindowId, e) {
+    this.setState((state) => {
+      const draggedWid = this.state.draggedTabData.windowId;
+      const draggedTid = this.state.draggedTabData.tabId;
+
+      if (draggedTid === dropzoneTabId) {
+        return state;
+      }
+      let newTabWindows = 
+        this.updateTabWindow(state.tabWindows, draggedWid, draggedTid,
+                             this.remove);
+      newTabWindows = 
+        this.updateTabWindow(newTabWindows, dropzoneWindowId, dropzoneTabId,
+                             this.addBelow, draggedTid);
+      const movedToIndex = 
+        this.findTabIndex(newTabWindows, dropzoneWindowId, draggedTid);
+
+      const tabsMoved = state.tabsMoved.concat([{
+        tabId: draggedTid,
+        moveProperties: {
+          index: movedToIndex,
+          windowId: dropzoneWindowId
+        }
+      }]);
+    if (TESTING) {
+      console.log("Dropped.  Will update state to: ");
+      console.log({ tabWindows: newTabWindows, tabsMoved: tabsMoved,
+        draggedTabData: "empty"});
+    }
+    return {
+        tabWindows: newTabWindows,
+        tabsMoved: tabsMoved,
+        draggedTabData: "empty"
+      };
+    }); 
+  }
+
+  applyChanges() {
+    this.props.channel.postMessage(this.state.tabsMoved);
+    this.setState({tabsMoved: []});
+  }
+
+  render() {
+    let tabwindows = [];
+    this.state.tabWindows.forEach((tw) => {
+      tabwindows.push(
+        <TabWindow key={tw.windowId} windowId={tw.windowId} indexes={tw.indexes} 
+          onDrop={this.handleOnDrop} onDragStart={this.handleOnDragStart}
+          isMoved={this.isTabMoved}/>
+      );
+    });
+
+    return (
+      <div className="app">
+        {tabwindows}
+        <Check tabsMoved={this.state.tabsMoved} onClick={this.applyChanges}/>
+      </div>
+    );
+  }
+
+  //* Helper functions
 
   /** Find the tab associated with (tabId, windowId) in tabWindows
    *  and update with callback `fn`
@@ -212,14 +246,6 @@ class App extends React.Component {
             .concat(indexes.slice(idx+1, indexes.length));
   }
 
-  handleOnDragStart(tabId, windowId, e) {
-    this.setState((state) => {
-      return {
-        draggedTabData: {tabId: tabId, windowId: windowId}
-      };
-    });
-  }
-
   findTabIndex(tabWindows, windowId, tabId) {
     return (
       tabWindows
@@ -229,86 +255,42 @@ class App extends React.Component {
     )
   }
 
-  handleOnDrop(tabId, windowId, e) {
-
-    this.setState((state) => {
-      const draggedWid = this.state.draggedTabData.windowId;
-      const draggedTid = this.state.draggedTabData.tabId;
-      let ret = 
-        this.updateTabWindow(state.tabWindows, draggedWid, draggedTid, this.remove);
-      ret = 
-        this.updateTabWindow(ret, windowId, tabId, this.addBelow, draggedTid);
-      
-      const movedToIndex = 
-        this.findTabIndex(this.state.tabWindows, windowId, tabId);
-
-      const tabsMoved = state.tabsMoved.concat([{
-        tabId: draggedTid,
-        moveProperties: {
-          index: movedToIndex,
-          windowId: windowId
-        }
-      }]);
-
-      if (TESTING) {
-        console.log("Dropped.  Will update state to: ");
-        console.log({
-          tabWindows: ret,
-          tabsMoved: tabsMoved,
-          draggedTabData: "empty"
-        });
-      }
-    
-    return {
-        tabWindows: ret,
-        tabsMoved: tabsMoved,
-        draggedTabData: "empty"
-      };
-    }); 
-  }
-
   isTabMoved(tabId) {
     const idx = this.state.tabsMoved.findIndex(elt => elt.tabId === tabId);
     return (idx !== -1);
   }
+}
 
-  render() {
-    let tabwindows = [];
-    this.state.tabWindows.forEach((tw) => {
-      tabwindows.push(
-        <TabWindow key={tw.windowId} windowId={tw.windowId} indexes={tw.indexes} 
-          onDrop={this.handleOnDrop} onDragStart={this.handleOnDragStart}
-          isMoved={this.isTabMoved}/>
-      );
-    });
-
-    return (
-      <div className="app">
-        {tabwindows}
-      </div>
-    );
-  }
+function Check(props) {
+  return <i className="gg-check-o float" onClick={props.onClick}></i>;
 }
 
 
+//* Main execution
 if (TESTING) {
-  initializeTabTable(DATA)
+  const dummyChannel = {
+    postMessage: function (tabsMoved) {
+      alert("Changes applied");
+    }
+  };
 
-  window.myapp = <App data={groupTabs(DATA)}/>
+  initializeTabTable(DATA)
+  window.myapp = <App tabWindows={groupTabs(DATA)} channel={dummyChannel}/>
   ReactDOM.render(
     window.myapp,
     document.getElementById('root')
-);
+  );
 } else {
   const channel = new BroadcastChannel("my-channel");
   channel.addEventListener("message", e => {
     initializeTabTable(e.data);
-    console.log(e.data);
     ReactDOM.render(
-      <App data={groupTabs(e.data)}/>,
+      <App tabWindows={groupTabs(e.data)} channel={channel}/>,
       document.getElementById('root')
     );
   });
+  channel.postMessage("Ready");
+
 }
 
 

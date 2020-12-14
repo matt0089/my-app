@@ -14,6 +14,7 @@ code {
     monospace;
 }
 
+/* React components */
 .app {
   display: flex;
   width: 100%;
@@ -27,7 +28,7 @@ code {
   border: 2px solid black;
 }
 
-.entry {
+.tab {
   min-height: 2em;
   display: flex;
   align-items: center;
@@ -43,10 +44,8 @@ img {
   max-height: 1.5em;
 }
 
-/* .todropon {
-  background-color: darkorange;
-} */
 
+/* UI state effects */
 .todropon{
   background-color: #8f8f8f;
 }
@@ -55,18 +54,57 @@ img {
   background-color: rgb(68, 146, 58)
 }
 
-.dragimg {
-  height: 1.3em;
-  width: 3em;
-  display: block;
-  background-color: #999999;
-}
-
-.entry * {
+.tab * { /* Prevent children of Tab from causing dragLeave events */
   pointer-events: none;
 }
 
-.fillerEntry {
-  height: 1.3em;
-  background-color: 'red';
+
+/* React Check component */
+/* References: css.gg/check-o
+               https://codepen.io/androidcss/pen/yOopGp */
+.gg-check-o {
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  transform: scale(3);
+  width: 22px;
+  height: 22px;
+  border: 0px solid;
+  border-radius: 100px;
+}
+
+.gg-check-o::after {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 10px;
+  border-color: currentColor;
+  border-width: 0 2px 2px 0;
+  border-style: solid;
+  transform-origin: bottom left;
+  transform: rotate(45deg);
+}
+
+.gg-check-o:hover {
+  background-color: #ddbb33;
+  bottom: 42px;
+  right: 42px;
+}
+.gg-check-o:active {
+  bottom: 40px;
+  right: 40px;
+}
+
+.float {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  background-color: #0C9;
+  color: #FFF;
+  text-align: center;
+  box-shadow: 2px 2px 3px #999;
 }
