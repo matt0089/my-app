@@ -169,6 +169,15 @@ class App extends React.Component {
     
   }
 
+  /** Find the tab associated with (tabId, windowId) in tabWindows
+   *  and update with callback `fn`
+   * @param {TabWindows}     tabWindows
+   * @param {number}         windowId
+   * @param {number}         tabId
+   * @param {ModifyTabState} fn
+   * @param {...*}           rest
+   * @returns {TabWindows}
+   */
   updateTabWindow(tabWindows, windowId, tabId, fn, ...rest) {
     return tabWindows.map(w => {
       if (w.windowId === windowId) {
@@ -183,14 +192,21 @@ class App extends React.Component {
       }
     });
   }
+  /** Modify a window tablist given the tablist and location of tab in array
+   * @callback ModifyTabState
+   * @param {number[]} indexes - TabIds within the selected window
+   * @param {number}   idx     - Index of selected tab in {@link indexes}
+   * @param {...*}     rest    - Additional params passed from {@link updateTabWindow}
+   * @returns {number[]} - new modified {@link indexes}
+   */
 
-  // updateTabWindow helper
+  /** @type {ModifyTabState} */
   addBelow(indexes, idx, newTabId) {
     return indexes.slice(0, idx+1)
             .concat([newTabId], indexes.slice(idx+1, indexes.length));
   }
 
-  // updateTabWindow helper
+  /** @type {ModifyTabState} */
   remove(indexes, idx) {
     return indexes.slice(0, idx)
             .concat(indexes.slice(idx+1, indexes.length));
@@ -234,12 +250,14 @@ class App extends React.Component {
         }
       }]);
 
-      console.log("Dropped.  Will update state to: ");
-      console.log({
-        tabWindows: ret,
-        tabsMoved: tabsMoved,
-        draggedTabData: "empty"
-      });
+      if (TESTING) {
+        console.log("Dropped.  Will update state to: ");
+        console.log({
+          tabWindows: ret,
+          tabsMoved: tabsMoved,
+          draggedTabData: "empty"
+        });
+      }
     
     return {
         tabWindows: ret,
@@ -255,10 +273,10 @@ class App extends React.Component {
   }
 
   render() {
-    let tabgroups = [];
-    this.state.tabWindows.forEach((elt) => {
-      tabgroups.push(
-        <TabWindow key={elt.windowId} windowId={elt.windowId} indexes={elt.indexes} 
+    let tabwindows = [];
+    this.state.tabWindows.forEach((tw) => {
+      tabwindows.push(
+        <TabWindow key={tw.windowId} windowId={tw.windowId} indexes={tw.indexes} 
           onDrop={this.handleOnDrop} onDragStart={this.handleOnDragStart}
           isMoved={this.isTabMoved}/>
       );
@@ -266,7 +284,7 @@ class App extends React.Component {
 
     return (
       <div className="app">
-        {tabgroups}
+        {tabwindows}
       </div>
     );
   }
@@ -300,6 +318,4 @@ if (TESTING) {
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
-
-// <p>{chrome.tabs.query({},(a) => toString(a[0]))}</p>
 
